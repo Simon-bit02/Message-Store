@@ -6,12 +6,14 @@ import {
   combineSubscriber,
   sendCommand,
 } from "@keix/message-store-client";
+
 import {
-  runCardExistProjector,
+  runGiftCardProjector,
+  runAmountProjector,
   runDeliveryProjector,
-  runVerifyAmountProjector,
-  runVerifyPendingProjector,
-  runVerifyProcessingProjector,
+  runErrorProjector,
+  runPendingProjector,
+  runProcessingProjector,
 } from "./projector";
 
 import {
@@ -45,7 +47,7 @@ async function businnesLogic(cmd: CommandCard) {
         },
       });
     case CommandTypeCard.UPDATE_GIFT_CARD:
-      if (await runCardExistProjector(cmd.data.id)) {
+      if (await runGiftCardProjector(cmd.data.id)) {
         return emitEvent({
           category: "giftCard",
           id: cmd.data.id,
@@ -62,13 +64,13 @@ async function businnesLogic(cmd: CommandCard) {
           id: cmd.data.id,
           event: EventTypeCard.GIFT_CARD_ERROR,
           data: {
-            type: "not exist",
+            type: "CardNotExist",
           },
         });
       }
 
     case CommandTypeCard.REMOVE_GIFT_CARD:
-      if (await runCardExistProjector(cmd.data.id)) {
+      if (await runGiftCardProjector(cmd.data.id)) {
         return emitEvent({
           category: "giftCard",
           id: cmd.data.id,
@@ -83,12 +85,12 @@ async function businnesLogic(cmd: CommandCard) {
           id: cmd.data.id,
           event: EventTypeCard.GIFT_CARD_ERROR,
           data: {
-            type: "not exist",
+            type: "CardNotExist",
           },
         });
       }
     case CommandTypeCard.REDEEM_GIFT_CARD:
-      if (await runVerifyPendingProjector(cmd.data.transactionId)) {
+      if (await runPendingProjector(cmd.data.transactionId)) {
         return;
       }
       await emitEvent({
@@ -98,8 +100,8 @@ async function businnesLogic(cmd: CommandCard) {
         data: cmd.data,
       });
       if (
-        (await runCardExistProjector(cmd.data.idCard)) &&
-        (await runVerifyAmountProjector(cmd.data.idCard, cmd.data.amount))
+        (await runGiftCardProjector(cmd.data.idCard)) &&
+        (await runAmountProjector(cmd.data.idCard, cmd.data.amount))
       ) {
         return await sendCommand({
           command: CommandTypeCredit.USE_CREDITS,
@@ -121,40 +123,52 @@ async function businnesLogic(cmd: CommandCard) {
           },
         });
       }
-
-      case CommandTypeCard.DELIVERY_GIFT_CARD:
-        if(await runVerifyProcessingProjector(cmd.data.transactionId)&& !await runDeliveryProjector(cmd.data.transactionId)){
+    case CommandTypeCard.DELIVERY_GIFT_CARD:
+      if (
+        (await runProcessingProjector(cmd.data.transactionId)) &&
+        !(await runDeliveryProjector(cmd.data.transactionId))
+      ) {
+        return await emitEvent({
+          category: "giftCardTransaction",
+          id: cmd.data.transactionId,
+          event: EventTypeCard.GIFT_CARD_REDEEM_SUCCEDED,
+          data: {
+            id: cmd.data.transactionId,
+          },
+        });
+      } else {
+        if (
+          !(await runDeliveryProjector(cmd.data.transactionId)) &&
+          !(await runErrorProjector(cmd.data.transactionId))
+        ) {
           return emitEvent({
             category: "giftCardTransaction",
-            id: cmd.data.id,
-            event: EventTypeCard.GIFT_CARD_REDEEM_SUCCEDED,
-            data: {
-              id: cmd.data.id,
-            },
-          });
-        }else{
-          return emitEvent({
-            category: "giftCardTransaction",
-            id: cmd.data.id,
+            id: cmd.data.transactionId,
             event: EventTypeCard.GIFT_CARD_REDEEM_FAILED,
             data: {
-              id: cmd.data.id,
+              id: cmd.data.transactionId,
+              type: "DeliveryError",
             },
           });
         }
+      }
   }
 }
 
 async function businnesLogicCredits(event: EventCredits) {
   switch (event.type) {
     case EventTypeCredit.CREDITS_USED:
-      if (await runVerifyProcessingProjector(event.data.transactionId)) return;
+      if (!(await runPendingProjector(event.data.transactionId))) {
+        return;
+      }
       return await emitEvent({
         category: "giftCardTransaction",
         id: event.data.transactionId,
         event: EventTypeCard.GIFT_CARD_REDEEM_PROCESSING,
         data: event.data,
       });
+    case EventTypeCredit.CREDITS_EARNED:
+    //return console.log(event, "GUADAGNO");
   }
 }
 
@@ -190,7 +204,4 @@ async function isLastMessageAfterGlobalPosition(
     streamName,
   });
   return lastMsg && lastMsg.global_position > global_position;
-}
-function runVerifyProcessingProjectorProjector(transactionId: string) {
-  throw new Error("Function not implemented.");
 }

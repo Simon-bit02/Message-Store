@@ -48,7 +48,6 @@ export enum EventTypeCard {
   GIFT_CARD_REDEEM_PROCESSING = "GIFT_CARD_REDEEM_PROCESSING",
   GIFT_CARD_REDEEM_FAILED = "GIFT_CARD_REDEEM_FAILED",
   GIFT_CARD_REDEEM_SUCCEDED = "GIFT_CARD_REDEEM_SUCCEDED",
-  GIFT_CARD_DELIVERED = "GIFT_CARD_DELIVERED"
 }
 
 export type GiftCardUpdated = Message<EventTypeCard.GIFT_CARD_UPDATED, { id: string; amounts: number[] }>;
@@ -59,6 +58,5 @@ export type GiftCardRedeemPending = Message<EventTypeCard.GIFT_CARD_REDEEM_PENDI
 export type GiftCardRedeemFailed = Message<EventTypeCard.GIFT_CARD_REDEEM_FAILED,{ id: string; type: string }>;
 export type GiftCardRedeemSucceded = Message<EventTypeCard.GIFT_CARD_REDEEM_SUCCEDED,{ id: string }>;
 export type GiftCardError = Message<EventTypeCard.GIFT_CARD_ERROR,{ type: string }>;
-export type GiftCardDelivered = Message<EventTypeCard.GIFT_CARD_DELIVERED, {id: string}>;
 
-export type EventCard = GiftCardUpdated | GiftCardRemoved | GiftCardAdded | GiftCardRedeemPending | GiftCardRedeemProcessing | GiftCardRedeemFailed | GiftCardRedeemSucceded | GiftCardError | GiftCardDelivered;
+export type EventCard = GiftCardUpdated | GiftCardRemoved | GiftCardAdded | GiftCardRedeemPending | GiftCardRedeemProcessing | GiftCardRedeemFailed | GiftCardRedeemSucceded | GiftCardError;
